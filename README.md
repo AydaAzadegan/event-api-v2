@@ -70,27 +70,54 @@ Tests include:
 - Listing all events
 - Handling non-existent event ID (404)
 - Triggering notification for soon-starting events
+You should see something like this if everything works:
+
+```bash
+tests/test_events.py .... [100%]
+4 passed in 0.7s
+```
+---
+
+## Limitations (If scaled to more than 10,000 users)
+
+### 1. In-Memory Data Storage 
+
+Currently, all event data is stored in a **Python dictionary** (`events_db`). This means:
+- **All data is lost** when the server restarts.
+- It cannot support horizontal scaling (e.g. multiple servers) because memory isn’t shared.
+- There’s no long-term data retention, backups, or query optimization.
+
+ **Solution**: Migrate to a **persistent database** like PostgreSQL.
 
 ---
 
-## Limitations (If scaled to 10,000+ users)
+### 2. Notification Logic Tied to Manual Requests
 
-- In-memory DB (no persistence)
-- Notification logic triggered by manual GET request
-- No concurrency handling
-- Events lost on app restart
+Right now, the "notification" is just a `print()` statement triggered **only when someone visits `/events`**. This is not scalable or reliable because:
+- If no one visits the route, notifications are never triggered.
+- There's no real-time background process monitoring upcoming events.
+- Notifications are printed to the server console, not sent to users (email, SMS, push, etc.).
+
+ **Solution**: Use a background task queue like **Celery** with **Redis**, or FastAPI’s `BackgroundTasks`, to monitor and dispatch real-time alerts independently of user actions.
+
+---
+
+### 3. No Fault Tolerance or Persistence on Restart
+
+Every time the app restarts:
+- All created events are gone.
+- There is no backup or caching system to recover previous data.
+
+This makes the system **unsuitable for production** or even internal tools.
+
+ **Solution**: Persist data using a real DB and add proper error handling and logging mechanisms.
 
 ---
 
-## Possible Improvements
-
-- Add a real database like PostgreSQL  
-- Use background jobs for async notifications  
-- Dockerize the project  
-- Add pagination & search filters  
-- Improve logging & API docs  
+While this project is great for showcasing **FastAPI fundamentals**, testing, and modular design, it requires significant upgrades for real-world scalability.
 
 ---
+
 
 ## Folder Structure
 
