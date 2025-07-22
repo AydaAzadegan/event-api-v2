@@ -70,6 +70,7 @@ Tests include:
 - Listing all events
 - Handling non-existent event ID (404)
 - Triggering notification for soon-starting events
+  
 You should see something like this if everything works:
 
 ```bash
