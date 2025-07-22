@@ -1,11 +1,16 @@
 from fastapi import FastAPI
-from controllers.event_controller import router as event_router
+from contextlib import asynccontextmanager
+from tasks.notification_worker import check_upcoming_events 
+from controllers import event_controller
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    import asyncio
+    task = asyncio.create_task(check_upcoming_events())
+    yield
+    task.cancel()
 
-@app.get("/")
-def root():
-    return {"message": " Your event API is running!"}
+app = FastAPI(lifespan=lifespan)
 
-# Include event routes
-app.include_router(event_router)
+# Include routes
+app.include_router(event_controller.router)

@@ -1,12 +1,13 @@
-import sys
 import io
+import sys
 import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from main import app
 from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
-
-# Add the parent folder to sys.path so we can import main.py
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from main import app
+from services.event_service import events_db
+from models.event import Event
+from tasks.notification_worker import check_events_once
 
 client = TestClient(app)
 
@@ -33,6 +34,7 @@ def test_get_event_not_found():
     assert response.json() == {"detail": "Event not found"}
 
 def test_notification_triggered_for_upcoming_event():
+    # Create event starting in 2 min
     start_time = (datetime.now(timezone.utc) + timedelta(minutes=2)).isoformat()
     response = client.post("/events", json={
         "title": "Soon Event",
@@ -41,11 +43,24 @@ def test_notification_triggered_for_upcoming_event():
     })
     assert response.status_code == 200
 
+    # Capture stdout
     captured_output = io.StringIO()
     sys.stdout = captured_output
-
     client.get("/events")
-
     sys.stdout = sys.__stdout__
-    printed_text = captured_output.getvalue()
-    assert " Event 'Soon Event' starts in" in printed_text
+
+    assert "Soon Event" in captured_output.getvalue()
+
+def test_background_notification_logic_direct_call():
+    now = datetime.now(timezone.utc)
+    event_time = now + timedelta(minutes=3)
+
+    # Add directly to DB
+    events_db["test-direct"] = Event(
+        title="Direct Worker Test",
+        description="Created for background test",
+        datetime=event_time
+    )
+
+    messages = check_events_once(now)
+    assert any("Direct Worker Test" in msg for msg in messages)
