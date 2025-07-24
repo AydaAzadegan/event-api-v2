@@ -1,33 +1,94 @@
-import uuid
-from typing import Dict
-from models.event import Event
+from sqlalchemy.future import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from models.event import Event, EventModel
 from fastapi import HTTPException
-from datetime import datetime, timezone
+from sqlalchemy import select
+from datetime import datetime, timezone, timedelta
+from .database import async_session
+import os
+from services.email_notifier import send_notification_email
 
-# In-memory "database" to store events
-# Keys are UUID strings, values are Event objects
-events_db: Dict[str, Event] = {}
+# CREATE
+async def create_event(event: Event, db: AsyncSession):
+    db_event = EventModel(
+        title=event.title,
+        description=event.description,
+        datetime=event.datetime
+    )
+    db.add(db_event)
+    await db.commit()
+    await db.refresh(db_event)
 
-# Create a new event and store it in memory
-def create_event(event: Event) -> dict:
-    event_id = str(uuid.uuid4())  # generate a unique ID for the event
-    events_db[event_id] = event   # store event 
-    return {"id": event_id, "event": event}  # return the new event ID and data
+    # Send notification email (if enabled)
+    if os.getenv("EMAIL_NOTIFICATIONS", "true").lower() == "true":
+        subject = f"New Event Created: {db_event.title}"
+        body = (
+            f"A new event has been created:\n\n"
+            f"Title: {db_event.title}\n"
+            f"Description: {db_event.description}\n"
+            f"Date & Time: {db_event.datetime}"
+        )
+        send_notification_email(subject, body)
 
-# List all events, and simulate a notif for events starting in < 5 minutes
-def list_events() -> dict:
-    now = datetime.now(timezone.utc)
-    for event_id, event in events_db.items():
-        # Calculate how many seconds until the event starts
-        seconds_until_start = (event.datetime - now).total_seconds()
-        # If the event starts in less than 5 minutes, print a notif
-        if 0 < seconds_until_start <= 300:
-            print(f" Event '{event.title}' starts in {int(seconds_until_start // 60)} minute(s)!")
-    return events_db  # return all events
+    return db_event
 
-# Fetch a specific event by ID, or return 404 if not found
-def get_event_by_id(event_id: str) -> dict:
-    event = events_db.get(event_id)
+
+# LIST
+async def list_events(db: AsyncSession):
+    result = await db.execute(select(EventModel))
+    return result.scalars().all()
+
+# GET BY ID
+async def get_event_by_id(event_id: str, db: AsyncSession):
+    event = await db.get(EventModel, event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    return {"id": event_id, "event": event}
+    return event
+
+
+async def get_upcoming_events():
+    async with async_session() as session:
+        now = datetime.now(timezone.utc)
+        soon = now + timedelta(minutes=5)
+
+        stmt = select(EventModel).where(EventModel.datetime.between(now, soon))
+        result = await session.execute(stmt)
+        events = result.scalars().all()
+
+        return events
+
+# CREATE
+async def create_event(event: Event, db: AsyncSession):
+    db_event = EventModel(
+        title=event.title,
+        description=event.description,
+        datetime=event.datetime
+    )
+    db.add(db_event)
+    await db.commit()
+    await db.refresh(db_event)
+    return db_event
+
+# LIST
+async def list_events(db: AsyncSession):
+    result = await db.execute(select(EventModel))
+    return result.scalars().all()
+
+# GET BY ID
+async def get_event_by_id(event_id: str, db: AsyncSession):
+    event = await db.get(EventModel, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
+
+
+async def get_upcoming_events():
+    async with async_session() as session:
+        now = datetime.now(timezone.utc)
+        soon = now + timedelta(minutes=5)
+
+        stmt = select(EventModel).where(EventModel.datetime.between(now, soon))
+        result = await session.execute(stmt)
+        events = result.scalars().all()
+
+        return events

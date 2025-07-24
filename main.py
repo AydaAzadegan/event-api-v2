@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from tasks.notification_worker import check_upcoming_events 
+from tasks.notification_worker import check_upcoming_events
 from controllers import event_controller
-
+import asyncio
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import asyncio
@@ -11,6 +11,5 @@ async def lifespan(app: FastAPI):
     task.cancel()
 
 app = FastAPI(lifespan=lifespan)
-
-# Include routes
 app.include_router(event_controller.router)
+
