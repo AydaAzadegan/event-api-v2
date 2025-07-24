@@ -19,8 +19,8 @@ A FastAPI-based backend that allows users to create scheduled events and automat
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/event-api-project.git
-cd event-api-project
+git clone https://github.com/aydaazadegan/event-api-v2.git
+cd event-api-v2
 ```
 
 ### 2. Optional: Environment Configuration
