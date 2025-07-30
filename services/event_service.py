@@ -57,38 +57,3 @@ async def get_upcoming_events():
 
         return events
 
-# CREATE
-async def create_event(event: Event, db: AsyncSession):
-    db_event = EventModel(
-        title=event.title,
-        description=event.description,
-        datetime=event.datetime
-    )
-    db.add(db_event)
-    await db.commit()
-    await db.refresh(db_event)
-    return db_event
-
-# LIST
-async def list_events(db: AsyncSession):
-    result = await db.execute(select(EventModel))
-    return result.scalars().all()
-
-# GET BY ID
-async def get_event_by_id(event_id: str, db: AsyncSession):
-    event = await db.get(EventModel, event_id)
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return event
-
-
-async def get_upcoming_events():
-    async with async_session() as session:
-        now = datetime.now(timezone.utc)
-        soon = now + timedelta(minutes=5)
-
-        stmt = select(EventModel).where(EventModel.datetime.between(now, soon))
-        result = await session.execute(stmt)
-        events = result.scalars().all()
-
-        return events
