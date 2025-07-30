@@ -8,7 +8,6 @@ from services.database import async_session
 from models.event import EventModel, NotificationLog
 from services.email_notifier import send_notification_email
 import asyncio
-from services.event_service import get_upcoming_events
 
 async def check_upcoming_events():
     while True:
