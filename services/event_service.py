@@ -46,14 +46,3 @@ async def get_event_by_id(event_id: str, db: AsyncSession):
     return event
 
 
-async def get_upcoming_events():
-    async with async_session() as session:
-        now = datetime.now(timezone.utc)
-        soon = now + timedelta(minutes=5)
-
-        stmt = select(EventModel).where(EventModel.datetime.between(now, soon))
-        result = await session.execute(stmt)
-        events = result.scalars().all()
-
-        return events
-
